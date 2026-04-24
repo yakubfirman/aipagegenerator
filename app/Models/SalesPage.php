@@ -17,6 +17,7 @@ class SalesPage extends Model
     ];
 
     protected $casts = [
+        'user_id' => 'integer',
         'input_data' => 'array',
         'generated_content' => 'array',
     ];

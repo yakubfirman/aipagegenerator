@@ -9,16 +9,16 @@ class SalesPagePolicy
 {
     public function view(User $user, SalesPage $salesPage): bool
     {
-        return $user->id === $salesPage->user_id;
+        return (int) $user->id === (int) $salesPage->user_id;
     }
 
     public function update(User $user, SalesPage $salesPage): bool
     {
-        return $user->id === $salesPage->user_id;
+        return (int) $user->id === (int) $salesPage->user_id;
     }
 
     public function delete(User $user, SalesPage $salesPage): bool
     {
-        return $user->id === $salesPage->user_id;
+        return (int) $user->id === (int) $salesPage->user_id;
     }
 }
