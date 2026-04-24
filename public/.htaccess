@@ -1,25 +1,45 @@
+# ============================================================
+# Public .htaccess - Laravel Front Controller
+# File ini menangani routing semua request ke index.php
+# ============================================================
+
 <IfModule mod_rewrite.c>
+
+    # Nonaktifkan MultiViews & listing direktori
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
     </IfModule>
 
     RewriteEngine On
 
-    # Handle Authorization Header
+    # ----------------------------------------------------------
+    # Teruskan header Authorization ke PHP
+    # (dibutuhkan untuk API dengan Bearer Token / JWT)
+    # ----------------------------------------------------------
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Handle X-XSRF-Token Header
+    # ----------------------------------------------------------
+    # Teruskan header X-XSRF-Token ke PHP
+    # (dibutuhkan untuk proteksi CSRF pada request AJAX)
+    # ----------------------------------------------------------
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
+    # ----------------------------------------------------------
+    # Hapus trailing slash jika bukan direktori nyata
+    # Contoh: /tentang/ -> /tentang
+    # ----------------------------------------------------------
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Send Requests To Front Controller...
+    # ----------------------------------------------------------
+    # Arahkan semua request ke index.php (Front Controller)
+    # Kecuali file/folder yang benar-benar ada di disk
+    # ----------------------------------------------------------
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
+
 </IfModule>
