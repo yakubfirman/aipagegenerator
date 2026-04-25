@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, createContext, useContext, useRef } from 'react';
+import { usePage } from '@inertiajs/react';
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 /* ── Context ─────────────────────────────────────────────── */
@@ -99,7 +100,7 @@ export function useToast() {
 /* ── Flash bridge — auto-shows Inertia flash messages ─────── */
 export function FlashToastBridge() {
     const { toast } = useToast();
-    const { props } = require('@inertiajs/react').usePage();
+    const { props } = usePage();
     const shownRef = useRef(new Set());
 
     useEffect(() => {

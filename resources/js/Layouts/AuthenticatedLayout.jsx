@@ -1,7 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { Sparkles, LayoutDashboard, FileText, Plus, User, LogOut, Menu, X, ChevronDown, Keyboard } from 'lucide-react';
-import { ToastProvider, FlashToastBridge } from '@/Components/Toast';
+import { ToastProvider, FlashToastBridge } from '@/components/Toast';
 
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth.user;
