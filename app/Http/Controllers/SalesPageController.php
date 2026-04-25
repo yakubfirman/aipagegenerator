@@ -13,7 +13,7 @@ class SalesPageController extends Controller
     {
         $pages = auth()->user()->salesPages()
             ->latest()
-            ->get(['id', 'product_name', 'template', 'status', 'created_at']);
+            ->get(['id', 'product_name', 'template', 'status', 'created_at', 'generated_content']);
 
         return Inertia::render('SalesPages/Index', [
             'pages' => $pages,
@@ -105,10 +105,17 @@ class SalesPageController extends Controller
         $this->authorize('update', $salesPage);
 
         $validated = $request->validate([
-            'cta_url'      => 'nullable|string|max:500',
-            'color_scheme' => 'nullable|in:violet,emerald,rose,amber,sky',
-            'template'     => 'nullable|in:default,minimal,bold',
+            'cta_url'          => 'nullable|string|max:500',
+            'color_scheme'     => 'nullable|in:violet,emerald,rose,amber,sky',
+            'template'         => 'nullable|in:default,minimal,bold',
+            'generated_content'=> 'nullable|array',
         ]);
+
+        // Handle full content revert (undo)
+        if (!empty($validated['generated_content'])) {
+            $salesPage->update(['generated_content' => $validated['generated_content']]);
+            return back()->with('success', 'Konten dikembalikan ke versi sebelumnya.');
+        }
 
         $updateData = [];
 
@@ -136,5 +143,22 @@ class SalesPageController extends Controller
         }
 
         return back()->with('success', 'Pengaturan disimpan.');
+    }
+
+    public function duplicate(SalesPage $salesPage)
+    {
+        $this->authorize('view', $salesPage);
+
+        $clone = auth()->user()->salesPages()->create([
+            'product_name'      => $salesPage->product_name . ' (Salinan)',
+            'input_data'        => $salesPage->input_data,
+            'template'          => $salesPage->template,
+            'generated_content' => $salesPage->generated_content,
+            'status'            => $salesPage->status,
+        ]);
+
+        return redirect()
+            ->route('sales-pages.show', $clone->id)
+            ->with('success', 'Halaman berhasil diduplikasi.');
     }
 }

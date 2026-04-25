@@ -1,8 +1,8 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, Link, router, usePage } from "@inertiajs/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SalesPagePreview from "@/Components/SalesPagePreview";
-import { ArrowLeft, Pencil, Sparkles, RefreshCw, Download, CheckCircle2, AlertCircle, Monitor, Layers, Zap, Wand2, Shuffle, Link2, Save, Palette, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ArrowLeft, Pencil, Sparkles, RefreshCw, Download, CheckCircle2, AlertCircle, Monitor, Layers, Zap, Wand2, Shuffle, Link2, Save, Palette, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Clipboard, ClipboardCheck, RotateCcw, History } from "lucide-react";
 
 const TEMPLATES = [
     { value: "default", label: "Default",  icon: Monitor, desc: "Premium & Elegan",        hint: "Cocok untuk produk digital & teknologi" },
@@ -41,7 +41,47 @@ export default function Show({ page }) {
     const [savingCtaUrl, setSavingCtaUrl] = useState(false);
     const [ctaUrlSaved, setCtaUrlSaved] = useState(false);
     const [panelOpen, setPanelOpen] = useState(true);
-    const isBusy = generating || loadingTemplate !== null || regeneratingSection !== null;
+    const [contentSnapshots, setContentSnapshots] = useState([]); // up to 3 previous versions
+    const [copiedSection, setCopiedSection] = useState(null);     // section key showing ✓
+    const [reverting, setReverting] = useState(false);
+    const prevContentRef = useRef(content);
+    const isBusy = generating || loadingTemplate !== null || regeneratingSection !== null || reverting;
+
+    // Track content changes to build history (only for preserveState requests)
+    useEffect(() => {
+        if (
+            content &&
+            prevContentRef.current &&
+            JSON.stringify(content) !== JSON.stringify(prevContentRef.current)
+        ) {
+            setContentSnapshots((prev) => [prevContentRef.current, ...prev].slice(0, 3));
+        }
+        prevContentRef.current = content;
+    }, [content]);
+
+    const handleCopySection = (sectionKey) => {
+        if (!content) return;
+        const val = content[sectionKey];
+        const text = Array.isArray(val) ? val.join('\n') : (val ?? '');
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedSection(sectionKey);
+            setTimeout(() => setCopiedSection(null), 1800);
+        });
+    };
+
+    const handleRevert = (snapshot) => {
+        setReverting(true);
+        router.patch(
+            route('sales-pages.update-settings', page.id),
+            { generated_content: snapshot },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onFinish: () => setReverting(false),
+                onSuccess: () => setContentSnapshots((prev) => prev.filter((s) => s !== snapshot)),
+            }
+        );
+    };
 
     // Full generate from scratch (empty state — AI picks template + content)
     const handleAutoRegenerate = () => {
@@ -335,26 +375,43 @@ export default function Show({ page }) {
 
                                         <div className="border-t border-slate-800" />
 
-                                        {/* Section 2 — Per-section regeneration */}
+                                        {/* Section 2 — Per-section regeneration + copy */}
                                         <div className="p-4">
-                                            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">Regenerasi Bagian</p>
-                                            <div className="flex flex-wrap gap-1.5">
+                                            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">Regenerasi &amp; Salin Bagian</p>
+                                            <div className="flex flex-col gap-1.5">
                                                 {SECTIONS.map((s) => {
                                                     const isLoading = regeneratingSection === s.key;
+                                                    const isCopied = copiedSection === s.key;
                                                     return (
-                                                        <button
-                                                            key={s.key}
-                                                            onClick={() => handleRegenerateSection(s.key)}
-                                                            disabled={isBusy}
-                                                            className={`flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11px] font-medium transition disabled:cursor-not-allowed ${
-                                                                isLoading
-                                                                    ? 'border-violet-500/60 bg-violet-600/15 text-violet-300'
-                                                                    : 'border-slate-700 bg-slate-800/60 text-slate-400 hover:border-slate-600 hover:text-white disabled:opacity-40'
-                                                            }`}
-                                                        >
-                                                            {isLoading && <RefreshCw className="h-3 w-3 animate-spin" />}
-                                                            {s.label}
-                                                        </button>
+                                                        <div key={s.key} className="flex items-center gap-1.5">
+                                                            <button
+                                                                onClick={() => handleRegenerateSection(s.key)}
+                                                                disabled={isBusy}
+                                                                className={`flex flex-1 items-center gap-1.5 rounded-sm border px-2 py-1 text-[11px] font-medium transition disabled:cursor-not-allowed ${
+                                                                    isLoading
+                                                                        ? 'border-violet-500/60 bg-violet-600/15 text-violet-300'
+                                                                        : 'border-slate-700 bg-slate-800/60 text-slate-400 hover:border-slate-600 hover:text-white disabled:opacity-40'
+                                                                }`}
+                                                            >
+                                                                {isLoading && <RefreshCw className="h-3 w-3 animate-spin shrink-0" />}
+                                                                {s.label}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleCopySection(s.key)}
+                                                                disabled={!content}
+                                                                title={`Salin ${s.label}`}
+                                                                className={`flex shrink-0 items-center justify-center rounded-sm border p-1 transition disabled:opacity-30 ${
+                                                                    isCopied
+                                                                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+                                                                        : 'border-slate-700 bg-slate-800/60 text-slate-500 hover:border-slate-600 hover:text-white'
+                                                                }`}
+                                                            >
+                                                                {isCopied
+                                                                    ? <ClipboardCheck className="h-3 w-3" />
+                                                                    : <Clipboard className="h-3 w-3" />
+                                                                }
+                                                            </button>
+                                                        </div>
                                                     );
                                                 })}
                                             </div>
@@ -428,6 +485,36 @@ export default function Show({ page }) {
                                                 </button>
                                             </div>
                                         </div>
+
+                                        {/* Section 5 — Content History / Undo */}
+                                        {contentSnapshots.length > 0 && (
+                                            <>
+                                                <div className="border-t border-slate-800" />
+                                                <div className="p-4">
+                                                    <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                                                        <span className="flex items-center gap-1"><History className="h-3 w-3" /> Riwayat ({contentSnapshots.length})</span>
+                                                    </p>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {contentSnapshots.map((snap, i) => (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => handleRevert(snap)}
+                                                                disabled={isBusy}
+                                                                className="flex w-full items-center gap-2 rounded-sm border border-slate-700 bg-slate-800/60 px-2.5 py-2 text-left text-[11px] text-slate-400 transition hover:border-violet-500/40 hover:text-white disabled:opacity-50"
+                                                            >
+                                                                <RotateCcw className={`h-3 w-3 shrink-0 text-violet-500 ${reverting ? 'animate-spin' : ''}`} />
+                                                                <span className="truncate">
+                                                                    {i === 0 ? 'Undo terakhir' : `Versi ${i + 1} lalu'`}
+                                                                    {snap.headline && (
+                                                                        <span className="ml-1 text-slate-600">— {snap.headline.slice(0, 30)}{snap.headline.length > 30 ? '…' : ''}</span>
+                                                                    )}
+                                                                </span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
 
                                     </div>
                                 </div>

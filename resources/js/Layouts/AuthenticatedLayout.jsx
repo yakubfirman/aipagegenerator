@@ -1,11 +1,51 @@
-import { Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
-import { Sparkles, LayoutDashboard, FileText, Plus, User, LogOut, Menu, X, ChevronDown } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import { Sparkles, LayoutDashboard, FileText, Plus, User, LogOut, Menu, X, ChevronDown, Keyboard } from 'lucide-react';
+import { ToastProvider, FlashToastBridge } from '@/Components/Toast';
 
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth.user;
     const [mobileOpen, setMobileOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const [shortcutsOpen, setShortcutsOpen] = useState(false);
+    const [navLoading, setNavLoading] = useState(false);
+
+    // Global keyboard shortcuts
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                router.visit(route('sales-pages.create'));
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+                e.preventDefault();
+                router.visit(route('dashboard'));
+            }
+            if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+                setShortcutsOpen((v) => !v);
+            }
+            if (e.key === 'Escape') {
+                setShortcutsOpen(false);
+                setUserMenuOpen(false);
+                setMobileOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
+    // Inertia navigation progress bar
+    useEffect(() => {
+        const startHandler = () => setNavLoading(true);
+        const finishHandler = () => setNavLoading(false);
+        document.addEventListener('inertia:start', startHandler);
+        document.addEventListener('inertia:finish', finishHandler);
+        return () => {
+            document.removeEventListener('inertia:start', startHandler);
+            document.removeEventListener('inertia:finish', finishHandler);
+        };
+    }, []);
 
     const navLinks = [
         { href: route('dashboard'), label: 'Dashboard', icon: LayoutDashboard, active: route().current('dashboard') },
@@ -13,7 +53,15 @@ export default function AuthenticatedLayout({ header, children }) {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-950">
+        <ToastProvider>
+            <FlashToastBridge />
+            <div className="min-h-screen bg-slate-950">
+                {/* Navigation progress bar */}
+                {navLoading && (
+                    <div className="fixed left-0 top-0 z-[9999] h-0.5 w-full overflow-hidden">
+                        <div className="animate-progress-bar h-full bg-gradient-to-r from-violet-500 via-indigo-500 to-violet-500 bg-[length:200%_100%]" />
+                    </div>
+                )}
             {/* Top Navbar */}
             <nav className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -178,6 +226,42 @@ export default function AuthenticatedLayout({ header, children }) {
 
             {/* Content */}
             <main>{children}</main>
+
+            {/* Keyboard Shortcuts Modal */}
+            {shortcutsOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShortcutsOpen(false)}>
+                    <div className="w-full max-w-sm rounded-sm border border-slate-700 bg-slate-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+                            <div className="flex items-center gap-2">
+                                <Keyboard className="h-4 w-4 text-violet-400" />
+                                <h3 className="font-semibold text-white">Keyboard Shortcuts</h3>
+                            </div>
+                            <button onClick={() => setShortcutsOpen(false)} className="text-slate-500 hover:text-white"><X className="h-4 w-4" /></button>
+                        </div>
+                        <div className="space-y-2 p-5 text-sm">
+                            {[
+                                { keys: ['Ctrl', 'K'], label: 'Buat sales page baru' },
+                                { keys: ['Ctrl', 'D'], label: 'Ke dashboard' },
+                                { keys: ['?'], label: 'Tampilkan shortcuts ini' },
+                                { keys: ['Esc'], label: 'Tutup modal / menu' },
+                            ].map(({ keys, label }) => (
+                                <div key={label} className="flex items-center justify-between gap-4">
+                                    <span className="text-slate-400">{label}</span>
+                                    <div className="flex items-center gap-1">
+                                        {keys.map((k) => (
+                                            <kbd key={k} className="rounded border border-slate-600 bg-slate-800 px-2 py-0.5 text-xs font-mono text-slate-300">{k}</kbd>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="border-t border-slate-800 px-5 py-3">
+                            <p className="text-xs text-slate-600">Tekan <kbd className="rounded border border-slate-700 bg-slate-800 px-1 py-0.5 font-mono text-slate-500">?</kbd> kapan saja untuk membuka ini.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
+        </ToastProvider>
     );
 }

@@ -9,17 +9,24 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return redirect()->route('login');
+    return Inertia::render('Welcome', [
+        'auth' => ['user' => auth()->user()],
+    ]);
 });
 
 Route::get('/dashboard', function () {
     $user = auth()->user();
+    $recentPages = $user->salesPages()
+        ->latest()
+        ->take(5)
+        ->get(['id', 'product_name', 'template', 'status', 'created_at', 'generated_content']);
     return Inertia::render('Dashboard', [
         'stats' => [
             'total'     => $user->salesPages()->count(),
             'generated' => $user->salesPages()->where('status', 'generated')->count(),
             'draft'     => $user->salesPages()->where('status', 'draft')->count(),
         ],
+        'recentPages' => $recentPages,
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -37,6 +44,8 @@ Route::middleware('auth')->group(function () {
         ->name('sales-pages.export-html');
     Route::patch('sales-pages/{salesPage}/update-settings', [SalesPageController::class, 'updateSettings'])
         ->name('sales-pages.update-settings');
+    Route::post('sales-pages/{salesPage}/duplicate', [SalesPageController::class, 'duplicate'])
+        ->name('sales-pages.duplicate');
 });
 
 require __DIR__.'/auth.php';
